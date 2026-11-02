@@ -30,3 +30,9 @@ target
 # Local Python policy test caches
 __pycache__/
 *.py[cod]
+
+# Local tooling artifacts
+.mimosa/
+.video_agent/
+/out/
+.zcode/

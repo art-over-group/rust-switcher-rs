@@ -66,7 +66,9 @@ pub struct Layout {
 impl Layout {
     pub fn new(client_w: i32) -> Self {
         let margin = 12;
-        let group_h = 198;
+        // 6 hotkey rows (28 px each) + playground row must fit: rows end at
+        // top + 196, the playground edit adds 22 -> bottom ~218, plus padding.
+        let group_h = 230;
         let group_w_left = 240;
         let gap = 12;
 

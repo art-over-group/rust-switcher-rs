@@ -15,8 +15,7 @@ use windows::Win32::{
 };
 
 use super::{
-    mapping,
-    selection_probe::{CapturedSelection, SelectionProbe, probe_selection},
+    case_switch, mapping, selection_probe::{CapturedSelection, SelectionProbe, probe_selection},
     smart,
 };
 use crate::{
@@ -42,10 +41,21 @@ pub fn smart_convert_selection_if_any(state: &mut AppState) -> bool {
 
 fn convert_selection_if_any_impl(state: &mut AppState, mode: SelectionDirectionMode) -> bool {
     match convert_selection_outcome(state, MAX_SELECTION_CHARS, mode) {
-        ConvertOutcome::Noop => false,
-        ConvertOutcome::Ok | ConvertOutcome::Cancelled => true,
+        ConvertOutcome::Noop => {
+            tracing::trace!("selection conversion: no selection found");
+            false
+        }
+        ConvertOutcome::Cancelled => {
+            tracing::trace!("selection conversion: cancelled due to blocked or changed target");
+            true
+        }
+        ConvertOutcome::Ok => {
+            tracing::trace!("selection conversion: completed successfully");
+            true
+        }
         ConvertOutcome::Err(e) => {
             tracing::warn!(user_text = e.user_text(), error = ?e, "selection conversion failed");
+            tracing::trace!("selection conversion: error emitted");
             true
         }
     }
@@ -107,7 +117,15 @@ fn convert_selection_outcome(
     mode: SelectionDirectionMode,
 ) -> ConvertOutcome {
     let selection = match probe_selection(max_chars) {
-        SelectionProbe::Absent => return ConvertOutcome::Noop,
+        SelectionProbe::Absent => {
+            let cfg = crate::config::load().unwrap_or_default();
+            if cfg.clipboard_fallback_enabled
+                && convert_selection_clipboard_fallback(state)
+            {
+                return ConvertOutcome::Ok;
+            }
+            return ConvertOutcome::Noop;
+        }
         // A busy or unreadable target must not fall through to last-word deletion.
         SelectionProbe::Blocked => return ConvertOutcome::Cancelled,
         SelectionProbe::Selected(selection) => selection,
@@ -142,7 +160,7 @@ impl ConvertSelectionError {
 ///
 /// Keyboard layout switching is best effort and does not affect the result.
 fn convert_selection_from_text(
-    _state: &mut AppState,
+    state: &mut AppState,
     selection: &CapturedSelection,
     mode: SelectionDirectionMode,
 ) -> Result<(), ConvertSelectionError> {
@@ -172,8 +190,18 @@ fn convert_selection_from_text(
 
     // One SendInput call keeps Delete, insertion and reselection together.
     // Recheck cheap window identity immediately before submitting that batch.
-    if !replace_selection_unicode(&converted, || selection.target.is_current()) {
+    let cfg = crate::config::load().unwrap_or_default();
+    let reselect = cfg.richer_undo_enabled;
+    if !replace_selection_unicode(&converted, || selection.target.is_current(), reselect) {
         return Err(ConvertSelectionError::InputRejected);
+    }
+
+    if converted != *text {
+        state.last_conversion = Some(crate::app::ConversionFeedback::new(
+            crate::app::ConversionSource::Selection,
+            text.as_str(),
+            converted.as_str(),
+        ));
     }
 
     if selection.target.is_current() {
@@ -186,7 +214,152 @@ fn convert_selection_from_text(
     Ok(())
 }
 
-/// Returns the current foreground window, or `None` if it is null.
+/// Cycles the case of the selected text: `lower → UPPER → Sentence-case → lower`.
+///
+/// Shares the selection machinery with layout conversion (probe, guarded
+/// replacement, optional reselection for Ctrl+Z) but never touches layouts
+/// or the clipboard.
+pub fn switch_selection_case(state: &mut AppState) {
+    tracing::trace!("switch_selection_case called");
+    let fg = unsafe { GetForegroundWindow() };
+    if fg.0.is_null() {
+        tracing::warn!("foreground window is null");
+        return;
+    }
+
+    if !wait_shift_released(150) {
+        tracing::info!("wait_shift_released returned false (case switch)");
+        return;
+    }
+
+    let selection = match probe_selection(MAX_SELECTION_CHARS) {
+        SelectionProbe::Absent => {
+            tracing::trace!("case switch: no selection");
+            return;
+        }
+        SelectionProbe::Blocked => {
+            tracing::trace!("case switch: selection probe blocked");
+            return;
+        }
+        SelectionProbe::Selected(selection) => selection,
+    };
+
+    let converted = case_switch::switch_case(&selection.text);
+    if converted == selection.text {
+        tracing::trace!(text = %selection.text, "case switch: nothing to change");
+        return;
+    }
+
+    thread::sleep(Duration::from_millis(u64::from(
+        crate::config::CONVERSION_DELAY_MS,
+    )));
+
+    if !selection.is_current() {
+        tracing::warn!("case switch: target changed before input");
+        return;
+    }
+
+    let reselect = crate::config::load().unwrap_or_default().richer_undo_enabled;
+    if !replace_selection_unicode(&converted, || selection.target.is_current(), reselect) {
+        tracing::warn!("case switch: input rejected");
+        return;
+    }
+
+    state.last_conversion = Some(crate::app::ConversionFeedback::new(
+        crate::app::ConversionSource::CaseSwitch,
+        selection.text.as_str(),
+        converted.as_str(),
+    ));
+    tracing::trace!(converted = %converted, "case switch: completed");
+}
+
+use crate::config::load as load_config;
+use crate::platform::win::clipboard as clipboard;
+use windows::Win32::UI::Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_CONTROL};
+
+pub fn convert_selection_clipboard_fallback(state: &mut AppState) -> bool {
+    let _ = state;
+    let cfg = load_config().unwrap_or_default();
+    if !cfg.clipboard_fallback_enabled {
+        return false;
+    }
+
+    let fg = unsafe { GetForegroundWindow() };
+    if fg.0.is_null() {
+        return false;
+    }
+
+    let backup = clipboard::read_text().ok().flatten();
+
+    let c_key = VIRTUAL_KEY(0x43);
+    if !(crate::conversion::input::send_key(VK_CONTROL, false)
+        && crate::conversion::input::send_key(c_key, false)
+        && crate::conversion::input::send_key(c_key, true)
+        && crate::conversion::input::send_key(VK_CONTROL, true))
+    {
+        restore_clipboard(backup.as_ref());
+        return false;
+    }
+
+    thread::sleep(Duration::from_millis(200));
+
+    let after = clipboard::read_text().ok().flatten().unwrap_or_default();
+    if after.is_empty() || before_matches(backup.as_ref(), &after) {
+        restore_clipboard(backup.as_ref());
+        return false;
+    }
+    if after.chars().count() > MAX_SELECTION_CHARS {
+        restore_clipboard(backup.as_ref());
+        return false;
+    }
+    if unsafe { GetForegroundWindow() } != fg {
+        restore_clipboard(backup.as_ref());
+        return false;
+    }
+
+    let direction = conversion_direction_for_text(&after)
+        .or_else(expected_direction_for_foreground_window)
+        .unwrap_or(ConversionDirection::RuToEn);
+    let converted = convert_ru_en_with_direction(&after, direction);
+
+    thread::sleep(Duration::from_millis(u64::from(
+        crate::config::CONVERSION_DELAY_MS,
+    )));
+
+    if unsafe { GetForegroundWindow() } != fg {
+        restore_clipboard(backup.as_ref());
+        return false;
+    }
+    let target_is_current = || unsafe { GetForegroundWindow() } == fg;
+    let reselect = crate::config::load().unwrap_or_default().richer_undo_enabled;
+    if !replace_selection_unicode(&converted, target_is_current, reselect) {
+        restore_clipboard(backup.as_ref());
+        return false;
+    }
+    if converted != after {
+        state.last_conversion = Some(crate::app::ConversionFeedback::new(
+            crate::app::ConversionSource::Selection,
+            after.as_str(),
+            converted.as_str(),
+        ));
+    }
+    let _ = switch_keyboard_layout();
+    restore_clipboard(backup.as_ref());
+    true
+}
+fn before_matches(backup: Option<&String>, after: &str) -> bool {
+    backup.map(|t| t == after).unwrap_or(false)
+}
+fn restore_clipboard(previous: Option<&String>) {
+    match previous {
+        Some(text) => {
+            let _ = clipboard::write_text(text);
+        }
+        None => {
+            let _ = clipboard::clear();
+        }
+    }
+}
 fn foreground_window() -> Option<HWND> {
     let fg = unsafe { GetForegroundWindow() };
     (!fg.0.is_null()).then_some(fg)

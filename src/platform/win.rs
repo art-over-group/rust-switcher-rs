@@ -6,11 +6,14 @@
 //! present a settings window and respond to user actions.
 
 mod autostart;
+pub(crate) mod clipboard;
 mod commands;
 pub(crate) mod hotkey_format;
 pub(crate) mod keyboard;
 pub(crate) mod menu_theme;
 pub(crate) mod mouse;
+pub(crate) mod overlay;
+pub(crate) mod sound;
 pub mod state;
 pub(crate) mod tray;
 mod tray_dispatch;
@@ -235,6 +238,8 @@ fn apply_config_to_ui(
         state.checkboxes.autoconvert_feature,
         cfg.autoconvert_feature_enabled,
     );
+    helpers::set_checkbox(state.checkboxes.overlay, cfg.overlay_enabled);
+    helpers::set_checkbox(state.checkboxes.sound, cfg.sound_enabled);
 
     state.hotkey_values = crate::app::HotkeyValues::from_config(cfg);
     state.hotkey_sequence_values = crate::app::HotkeySequenceValues::from_config_all(cfg);
@@ -286,6 +291,12 @@ fn apply_config_to_ui(
         state.hotkeys.smart_selection,
         &format_hotkey_sequence(cfg.smart_hotkey_convert_selection_sequence),
     )?;
+    let switch_case_text = if cfg.hotkey_switch_case_sequence.is_some() {
+        format_hotkey_sequence(cfg.hotkey_switch_case_sequence)
+    } else {
+        format_hotkey(cfg.hotkey_switch_case)
+    };
+    set_hwnd_text(state.hotkeys.switch_case, &switch_case_text)?;
     crate::platform::ui::sync_smarter_hotkey_controls(hwnd, state, cfg.smarter_hotkeys_enabled)?;
     crate::platform::ui::sync_autoconvert_controls(state, cfg.autoconvert_feature_enabled);
 
@@ -300,6 +311,8 @@ fn read_ui_to_config(state: &AppState, mut cfg: config::Config) -> config::Confi
     cfg.smarter_hotkeys_enabled = helpers::get_checkbox(state.checkboxes.smarter_hotkeys);
     cfg.autoconvert_feature_enabled =
         helpers::get_checkbox(state.checkboxes.autoconvert_feature);
+    cfg.overlay_enabled = helpers::get_checkbox(state.checkboxes.overlay);
+    cfg.sound_enabled = helpers::get_checkbox(state.checkboxes.sound);
 
     cfg.hotkey_convert_last_word_sequence = state.hotkey_sequence_values.last_word;
     cfg.hotkey_convert_last_sequence_sequence = state.hotkey_sequence_values.last_sequence;
@@ -310,6 +323,7 @@ fn read_ui_to_config(state: &AppState, mut cfg: config::Config) -> config::Confi
     cfg.smart_hotkey_convert_last_sequence_sequence =
         state.hotkey_sequence_values.smart_last_sequence;
     cfg.smart_hotkey_convert_selection_sequence = state.hotkey_sequence_values.smart_selection;
+    cfg.hotkey_switch_case_sequence = state.hotkey_sequence_values.switch_case;
 
     fn hk_or_none_if_double(
         seq: Option<config::HotkeySequence>,
@@ -337,6 +351,10 @@ fn read_ui_to_config(state: &AppState, mut cfg: config::Config) -> config::Confi
     cfg.hotkey_switch_layout = match cfg.hotkey_switch_layout_sequence {
         Some(_) => None,
         None => state.hotkey_values.switch_layout,
+    };
+    cfg.hotkey_switch_case = match cfg.hotkey_switch_case_sequence {
+        Some(_) => None,
+        None => state.hotkey_values.switch_case,
     };
 
     cfg
@@ -724,6 +742,11 @@ pub extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPA
             LRESULT(0)
         }
 
+        overlay::WM_APP_OVERLAY => {
+            overlay::on_wm_app_overlay(hwnd);
+            LRESULT(0)
+        }
+
         WM_APP_RUN_RUNTIME_COMMAND => {
             with_state_mut_do(hwnd, |state| {
                 process_next_runtime_command(hwnd, state);
@@ -949,14 +972,15 @@ fn layout_hotkey_shares_sequence_with(
     layout.is_some() && layout == sequence
 }
 
-fn handle_convert_last_word_hotkey(state: &mut AppState) {
+fn handle_convert_last_word_hotkey(state: &mut AppState) -> bool {
     if last_word_hotkey_should_try_selection_first(state)
         && crate::domain::text::convert::convert_selection_if_any(state)
     {
-        return;
+        return true;
     }
 
     crate::conversion::convert_last_word(state);
+    true
 }
 
 fn handle_smart_convert_last_word_hotkey(state: &mut AppState) {
@@ -1000,7 +1024,20 @@ fn execute_runtime_command(hwnd: HWND, state: &mut AppState, command: RuntimeCom
                 tracing::warn!(msg = "autoconvert_toggle", source = "hotkey_pause_toggle");
                 handle_pause_toggle(hwnd, state);
             }
-            HotkeyAction::ConvertLastWord => handle_convert_last_word_hotkey(state),
+            HotkeyAction::ConvertLastWord => {
+                if handle_convert_last_word_hotkey(state) {
+                    let cfg = crate::config::load().unwrap_or_default();
+                    // The overlay already shows the result when enabled; keep
+                    // the balloon only as the silent-overlay feedback path.
+                    if cfg.tray_feedback_enabled && !cfg.overlay_enabled {
+                        let _ = crate::platform::win::tray::balloon_info(
+                            hwnd,
+                            "Rust Switcher",
+                            "Converted. Press Ctrl+Z to undo.",
+                        );
+                    }
+                }
+            }
             HotkeyAction::ConvertLastSequence => crate::conversion::convert_last_sequence(state),
             HotkeyAction::ConvertSelection => crate::conversion::convert_selection(state),
             HotkeyAction::SmartConvertLastWord => handle_smart_convert_last_word_hotkey(state),
@@ -1011,6 +1048,9 @@ fn execute_runtime_command(hwnd: HWND, state: &mut AppState, command: RuntimeCom
                 crate::conversion::smart_convert_selection(state)
             }
             HotkeyAction::SwitchLayout => handle_switch_layout_hotkey(state),
+            HotkeyAction::SwitchCase => {
+                crate::domain::text::convert::switch_selection_case(state)
+            }
         },
     }
 }
@@ -1040,11 +1080,34 @@ fn process_next_runtime_command(hwnd: HWND, state: &mut AppState) {
     execute_runtime_command(hwnd, state, command);
     state.runtime_command_running = false;
 
+    present_conversion_feedback(hwnd, state);
+
     if !state.pending_runtime_commands.is_empty() {
         unsafe {
             let _ = PostMessageW(Some(hwnd), WM_APP_RUN_RUNTIME_COMMAND, WPARAM(0), LPARAM(0));
         }
     }
+}
+
+/// Presents feedback for a completed conversion (overlay + sound tick, with
+/// a balloon as the B4 fallback). Consumes `state.last_conversion` recorded
+/// by the domain layer.
+fn present_conversion_feedback(hwnd: HWND, state: &mut AppState) {
+    let Some(feedback) = state.last_conversion.take() else {
+        return;
+    };
+
+    let cfg = crate::config::load().unwrap_or_default();
+
+    if cfg.sound_enabled {
+        sound::play(sound::SoundCue::ConversionTick);
+    }
+
+    if !cfg.overlay_enabled {
+        return;
+    }
+
+    overlay::request(hwnd, feedback);
 }
 
 #[cfg(test)]

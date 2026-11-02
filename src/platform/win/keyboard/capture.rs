@@ -91,6 +91,7 @@ pub(crate) fn ui_hotkey_target(state: &crate::app::AppState, slot: crate::app::H
         crate::app::HotkeySlot::SmartLastWord => state.hotkeys.smart_last_word,
         crate::app::HotkeySlot::SmartLastSequence => state.hotkeys.smart_last_sequence,
         crate::app::HotkeySlot::SmartSelection => state.hotkeys.smart_selection,
+        crate::app::HotkeySlot::SwitchCase => state.hotkeys.switch_case,
     }
 }
 

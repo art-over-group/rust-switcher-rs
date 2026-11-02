@@ -46,6 +46,7 @@ public static class HostedInput {
     [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr parent, int id);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr window, int command);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string className, string title);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);
     [DllImport("user32.dll", SetLastError=true)] public static extern bool PostMessage(IntPtr window, uint message, UIntPtr w, IntPtr l);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr LoadKeyboardLayout(string layout, uint flags);
     public static void Key(ushort key, bool up) {
@@ -185,6 +186,20 @@ function Assert-Value($Pattern, [string]$Expected, [string]$Name) {
     catch { throw "$Name; expected '$Expected'; actual '$($Pattern.Current.Value)'" }
     Record-Pass $Name
 }
+function Wait-OverlayVisible([bool]$ShouldAppear, [string]$Name) {
+    if ($ShouldAppear) {
+        Wait-Condition {
+            $hwnd = [HostedInput]::FindWindow('RustSwitcherOverlayWindow', $null)
+            $hwnd -ne [IntPtr]::Zero -and [HostedInput]::IsWindowVisible($hwnd)
+        } $Name
+    } else {
+        Wait-Condition {
+            $hwnd = [HostedInput]::FindWindow('RustSwitcherOverlayWindow', $null)
+            $hwnd -eq [IntPtr]::Zero -or -not [HostedInput]::IsWindowVisible($hwnd)
+        } $Name
+    }
+    Record-Pass $Name
+}
 function Quit-Owned($Process, $Window) {
     (Get-Pattern (Find-Control $Window 'Exit') ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
     if (-not $Process.WaitForExit(8000)) { throw 'Application did not exit within cleanup deadline' }
@@ -237,6 +252,8 @@ try {
             Start-Sleep -Milliseconds 300
             foreach ($character in 'GHBDTN '.ToCharArray()) { Tap-Key ([ushort]$character) }
             Assert-Value $value 'привет ' 'debug autoconvert after explicit runtime toggle'
+            Wait-OverlayVisible $true 'debug overlay appears after autoconvert'
+            Wait-OverlayVisible $false 'debug overlay auto-hides'
         } else {
             foreach ($character in 'GHBDTN VBH'.ToCharArray()) { Tap-Key ([ushort]$character) }
             Assert-Value $value 'ghbdtn vbh' 'debug last-sequence initial input'

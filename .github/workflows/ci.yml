@@ -57,7 +57,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Cargo clippy (core lib/tests only)
-        run: cargo +nightly clippy --lib --tests -- -D warnings
+        run: cargo +nightly clippy --workspace --lib --tests -- -D warnings
 
   test-lib-tests:
     name: test-lib-tests
@@ -79,7 +79,7 @@ jobs:
           tool: cargo-nextest
           fallback: none
       - name: Cargo test (core lib/tests only)
-        run: cargo +nightly nextest run --lib --tests --locked
+        run: cargo +nightly nextest run --workspace --lib --tests --locked
 
   windows-full:
     name: windows-full
