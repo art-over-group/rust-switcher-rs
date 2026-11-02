@@ -38,6 +38,13 @@ cargo install rust-switcher
 
 Download `rust-switcher.exe` from Releases.
 
+## Enhanced MVP
+
+See:
+- `docs/mvp-enhanced-implementation.md`
+- `docs/troubleshooting/conversion-not-working.md`
+- `docs/security/offline-first-mvp.md`
+
 ## Configuration
 
 The config file is stored at:
