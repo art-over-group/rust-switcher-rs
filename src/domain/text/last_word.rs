@@ -136,6 +136,11 @@ pub fn autoconvert_last_word(state: &mut AppState) {
         tracing::warn!(error = %err.as_str(), "autoconvert apply failed");
         return;
     }
+    state.last_conversion = Some(crate::app::ConversionFeedback::new(
+        crate::app::ConversionSource::AutoConvert,
+        payload.run.text.as_str(),
+        converted.as_str(),
+    ));
     update_journal(&payload, &converted);
     crate::input_journal::mark_last_token_autoconverted();
     restore.commit();
@@ -530,6 +535,13 @@ fn convert_last_word_impl(state: &mut AppState, switch_layout: bool, mode: Direc
     let converted = convert_with_mode(&payload.run.text, &payload.run.layout, mode);
     tracing::trace!(%converted, "converted");
     if apply_last_word_conversion(&payload, &converted) {
+        if converted != payload.run.text {
+            state.last_conversion = Some(crate::app::ConversionFeedback::new(
+                crate::app::ConversionSource::LastWord,
+                payload.run.text.as_str(),
+                converted.as_str(),
+            ));
+        }
         update_journal(&payload, &converted);
         restore.commit();
         if switch_layout {
@@ -572,6 +584,13 @@ fn convert_last_sequence_impl(state: &mut AppState, switch_layout: bool, mode: D
     let converted = convert_sequence_runs(&payload.runs, mode);
     tracing::trace!(%converted, "converted");
     if apply_last_sequence_conversion(&payload, &converted) {
+        if converted != payload.seq_text {
+            state.last_conversion = Some(crate::app::ConversionFeedback::new(
+                crate::app::ConversionSource::LastSequence,
+                payload.seq_text.as_str(),
+                converted.as_str(),
+            ));
+        }
         update_journal_sequence(&payload, &converted, mode);
         restore.commit();
         if switch_layout {

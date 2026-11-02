@@ -62,6 +62,8 @@ pub struct Config {
     pub tray_feedback_enabled: bool,
     #[serde(default = "default_richer_undo_enabled")]
     pub richer_undo_enabled: bool,
+    #[serde(default = "default_overlay_enabled")]
+    pub overlay_enabled: bool,
 
     pub hotkey_convert_last_word: Option<Hotkey>,
     #[serde(default)]
@@ -135,6 +137,10 @@ const fn default_richer_undo_enabled() -> bool {
     true
 }
 
+const fn default_overlay_enabled() -> bool {
+    true
+}
+
 fn default_smart_hotkey_convert_last_word_sequence() -> Option<HotkeySequence> {
     Some(triple_modifier_sequence(MOD_SHIFT.0, MODVK_LSHIFT))
 }
@@ -157,6 +163,7 @@ impl Default for Config {
             grammar_correction_enabled: false,
             tray_feedback_enabled: default_tray_feedback_enabled(),
             richer_undo_enabled: default_richer_undo_enabled(),
+            overlay_enabled: default_overlay_enabled(),
 
             hotkey_switch_layout: None,
             hotkey_pause: None,

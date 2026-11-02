@@ -6,6 +6,8 @@ UI toggle. You can set these in `%APPDATA%\RustSwitcher\config.json`:
 - `clipboard_fallback_enabled` defaults to `false`
 - `tray_feedback_enabled` defaults to `true`
 - `richer_undo_enabled` defaults to `true`
+- `overlay_enabled` defaults to `true` (also exposed as the
+  "Show conversion overlay" checkbox in Settings)
 
 Notes:
 - `clipboard_fallback_enabled` gates `convert_selection_clipboard_fallback`
@@ -16,6 +18,11 @@ Notes:
 - `richer_undo_enabled` controls whether selection replacement reselects the
   converted span (`replace_selection_unicode(..., reselect)`) so that Ctrl+Z
   undoes the conversion.
+- `overlay_enabled` gates the near-caret conversion overlay
+  (`src/platform/win/overlay.rs`). When the overlay cannot be created, the
+  result falls back to a tray balloon. When the overlay is enabled, the
+  separate "Converted. Press Ctrl+Z to undo." last-word balloon is suppressed
+  to avoid double feedback.
 - `grammar_correction_enabled` is reserved: no grammar feature is implemented
   (see `docs/features/grammar-correction.md`)
 - all flags are absent in older config files and receive safe defaults via

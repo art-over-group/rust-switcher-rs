@@ -21,6 +21,35 @@ pub enum RuntimeCommand {
     AutoconvertLastWord,
 }
 
+/// Which conversion flow produced a [`ConversionFeedback`].
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ConversionSource {
+    AutoConvert,
+    LastWord,
+    LastSequence,
+    Selection,
+}
+
+/// Details of a completed conversion, recorded by the domain layer and
+/// consumed by the presentation layer (overlay/sound) after the runtime
+/// command finishes.
+#[derive(Debug, Clone)]
+pub struct ConversionFeedback {
+    pub source: ConversionSource,
+    pub from: String,
+    pub to: String,
+}
+
+impl ConversionFeedback {
+    pub fn new(source: ConversionSource, from: impl Into<String>, to: impl Into<String>) -> Self {
+        Self {
+            source,
+            from: from.into(),
+            to: to.into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct UiError {
     pub title: String,
@@ -269,6 +298,11 @@ pub struct AppState {
     pub pending_runtime_commands: VecDeque<RuntimeCommand>,
     pub runtime_command_running: bool,
 
+    /// Feedback about the most recent completed conversion. Set by the
+    /// domain layer at its success points, consumed (and cleared) by the
+    /// presentation layer after each runtime command.
+    pub last_conversion: Option<ConversionFeedback>,
+
     pub active_switch_layout_sequence: Option<config::HotkeySequence>,
     pub switch_layout_waiting_second: bool,
     pub switch_layout_first_tick_ms: u64,
@@ -323,6 +357,7 @@ pub struct Checkboxes {
     pub theme_dark: HWND,
     pub smarter_hotkeys: HWND,
     pub autoconvert_feature: HWND,
+    pub overlay: HWND,
 }
 
 #[derive(Debug, Default)]
@@ -360,6 +395,7 @@ pub enum ControlId {
     DarkTheme = 1005,
     SmarterHotkeys = 1006,
     AutoconvertFeature = 1007,
+    OverlayEnabled = 1008,
 
     HotkeyLastWord = 1201,
     HotkeyLastSequence = 1202,
@@ -385,6 +421,7 @@ impl ControlId {
             1005 => Some(Self::DarkTheme),
             1006 => Some(Self::SmarterHotkeys),
             1007 => Some(Self::AutoconvertFeature),
+            1008 => Some(Self::OverlayEnabled),
 
             1201 => Some(Self::HotkeyLastWord),
             1202 => Some(Self::HotkeyLastSequence),

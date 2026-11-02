@@ -10,13 +10,15 @@ Branch: `enhanced-mvp`
 - `A4`: documented reproduction path
 - `A5`: regression smoke tests
 
-## Phase B: Feedback overlay layer
+## Phase B: Feedback overlay layer — DONE (`codex/overlay-feedback`)
 
-- `B1`: lightweight Win32 overlay (`WS_EX_LAYERED`) without focus steal
-- `B2`: conversion feedback auto-hide
-- `B3`: undo trigger
-- `B4`: toast fallback if overlay creation fails
-- `B5`: settings toggle for overlay enable
+- `B1`: lightweight Win32 overlay (`WS_EX_LAYERED`) without focus steal — done
+  (`src/platform/win/overlay.rs`)
+- `B2`: conversion feedback auto-hide (1.4 s timer) — done
+- `B3`: undo trigger — Ctrl+Z stays available; the overlay is informational and
+  click-through, undo is covered by `richer_undo_enabled` reselection
+- `B4`: toast fallback if overlay creation fails — done (tray balloon)
+- `B5`: settings toggle for overlay enable — done (`overlay_enabled` checkbox)
 
 ## Phase C: Dictionary + forms
 

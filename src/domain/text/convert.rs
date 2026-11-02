@@ -161,7 +161,7 @@ impl ConvertSelectionError {
 ///
 /// Keyboard layout switching is best effort and does not affect the result.
 fn convert_selection_from_text(
-    _state: &mut AppState,
+    state: &mut AppState,
     selection: &CapturedSelection,
     mode: SelectionDirectionMode,
 ) -> Result<(), ConvertSelectionError> {
@@ -195,6 +195,14 @@ fn convert_selection_from_text(
     let reselect = cfg.richer_undo_enabled;
     if !replace_selection_unicode(&converted, || selection.target.is_current(), reselect) {
         return Err(ConvertSelectionError::InputRejected);
+    }
+
+    if converted != *text {
+        state.last_conversion = Some(crate::app::ConversionFeedback::new(
+            crate::app::ConversionSource::Selection,
+            text.as_str(),
+            converted.as_str(),
+        ));
     }
 
     if selection.target.is_current() {
@@ -269,6 +277,13 @@ pub fn convert_selection_clipboard_fallback(state: &mut AppState) -> bool {
     if !replace_selection_unicode(&converted, target_is_current, reselect) {
         restore_clipboard(backup.as_ref());
         return false;
+    }
+    if converted != after {
+        state.last_conversion = Some(crate::app::ConversionFeedback::new(
+            crate::app::ConversionSource::Selection,
+            after.as_str(),
+            converted.as_str(),
+        ));
     }
     let _ = switch_keyboard_layout();
     restore_clipboard(backup.as_ref());

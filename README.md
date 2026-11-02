@@ -15,6 +15,7 @@ developer or third parties.
 - Convert selected text (RU↔EN)
 - Convert the last typed sequence via a hotkey ("smart" conversion also handles selection)
 - Auto-convert the last word while typing (can be disabled in Settings; runtime toggle starts paused)
+- Conversion overlay near the caret showing the result (`from → to`)
 - Tray icon and quick actions menu
 - Light and dark UI themes
 - Settings are saved to a config file
