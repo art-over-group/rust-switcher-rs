@@ -243,6 +243,30 @@ fn create_settings_group(
         },
     )?;
 
+    state.checkboxes.overlay = create(
+        hwnd,
+        ControlSpec {
+            ex_style: WINDOW_EX_STYLE(0),
+            class: w!("BUTTON"),
+            text: w!("Show conversion overlay"),
+            style: ws_i32(WS_CHILD | WS_VISIBLE | WS_TABSTOP, BS_AUTOCHECKBOX),
+            rect: RectI::new(left_x + 12, top_y + 148, l.group_w_left - 24, 20),
+            menu: Some(ControlId::OverlayEnabled.hmenu()),
+        },
+    )?;
+
+    state.checkboxes.sound = create(
+        hwnd,
+        ControlSpec {
+            ex_style: WINDOW_EX_STYLE(0),
+            class: w!("BUTTON"),
+            text: w!("Play conversion sound"),
+            style: ws_i32(WS_CHILD | WS_VISIBLE | WS_TABSTOP, BS_AUTOCHECKBOX),
+            rect: RectI::new(left_x + 12, top_y + 172, l.group_w_left - 24, 20),
+            menu: Some(ControlId::SoundEnabled.hmenu()),
+        },
+    )?;
+
     Ok(())
 }
 

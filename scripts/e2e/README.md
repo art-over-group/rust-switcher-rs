@@ -27,6 +27,7 @@ Results are printed in the job log without adding stored workflow artifacts.
 | Last word and overlapping smart hotkeys | Debug triple Shift and deferred double Shift, both directions | Injected input accepted through the debug-only opt-in |
 | Last typed sequence | Debug double Alt converts two words | Physical typing in release requires a separate VM with keyboard access |
 | Automatic last-word conversion | Debug runtime toggle followed by a word and space | Other delimiters are not exercised by this GUI scenario |
+| Conversion overlay | Debug overlay window appears after autoconvert and auto-hides | Visual placement, theming and the balloon fallback path are not asserted |
 | Selected text | Release double Shift in a separate native Edit, both directions, restored selection | Other applications, rich editors and elevated targets are not exercised |
 | Clipboard isolation | Clipboard sequence unchanged during selection conversion | Does not audit unrelated applications on the desktop |
 | Unicode boundary | A 510-character selection containing emoji must remain complete, followed by a short conversion | Does not prove every UI Automation provider's truncation behavior |
