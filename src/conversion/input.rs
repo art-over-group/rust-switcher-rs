@@ -93,7 +93,7 @@ fn key_event(vk: VIRTUAL_KEY, key_up: bool) -> INPUT {
     }
 }
 
-fn send_key(vk: VIRTUAL_KEY, key_up: bool) -> bool {
+pub fn send_key(vk: VIRTUAL_KEY, key_up: bool) -> bool {
     let input = key_event(vk, key_up);
 
     let Some(input_size) = input_struct_size_i32() else {
@@ -106,27 +106,36 @@ fn send_key(vk: VIRTUAL_KEY, key_up: bool) -> bool {
 
 /// Submit replacement as a single ordered input batch after a final target check.
 /// Windows does not interleave other keyboard/mouse input with this batch.
-pub fn replace_selection_unicode(text: &str, target_is_current: impl FnOnce() -> bool) -> bool {
+pub fn replace_selection_unicode(text: &str, target_is_current: impl FnOnce() -> bool, reselect: bool) -> bool {
     let units = text.encode_utf16().count();
     if units == 0 || units > 4096 { return false; }
     let delete = VIRTUAL_KEY(0x2E);
     let mut inputs = vec![key_event(delete, false), key_event(delete, true)];
     inputs.extend(unicode_events(text));
-    for _ in 0..units {
-        inputs.extend([key_event(VK_LEFT_KEY, false), key_event(VK_LEFT_KEY, true)]);
+
+    if reselect {
+        for _ in 0..units {
+            inputs.extend([key_event(VK_LEFT_KEY, false), key_event(VK_LEFT_KEY, true)]);
+        }
+        let shift_index = inputs.len();
+        inputs.push(key_event(VK_SHIFT_KEY, false));
+        for _ in 0..units {
+            inputs.extend([key_event(VK_RIGHT_KEY, false), key_event(VK_RIGHT_KEY, true)]);
+        }
+        inputs.push(key_event(VK_SHIFT_KEY, true));
+
+        let Some(size) = input_struct_size_i32() else { return false; };
+        if !target_is_current() { return false; }
+        let sent = unsafe { SendInput(&inputs, size) } as usize;
+        if sent > shift_index && sent < inputs.len() {
+            let _ = send_key(VK_SHIFT_KEY, true);
+        }
+        return sent == inputs.len();
     }
-    let shift_index = inputs.len();
-    inputs.push(key_event(VK_SHIFT_KEY, false));
-    for _ in 0..units {
-        inputs.extend([key_event(VK_RIGHT_KEY, false), key_event(VK_RIGHT_KEY, true)]);
-    }
-    inputs.push(key_event(VK_SHIFT_KEY, true));
+
     let Some(size) = input_struct_size_i32() else { return false; };
     if !target_is_current() { return false; }
     let sent = unsafe { SendInput(&inputs, size) } as usize;
-    if sent > shift_index && sent < inputs.len() {
-        let _ = send_key(VK_SHIFT_KEY, true);
-    }
     sent == inputs.len()
 }
 
@@ -134,6 +143,6 @@ pub fn replace_selection_unicode(text: &str, target_is_current: impl FnOnce() ->
 mod selection_tests {
     #[test]
     fn changed_target_cancels_before_native_input() {
-        assert!(!super::replace_selection_unicode("привет", || false));
+        assert!(!super::replace_selection_unicode("привет", || false, false));
     }
 }

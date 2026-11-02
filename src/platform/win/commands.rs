@@ -37,6 +37,7 @@ fn handle_hotkey_capture_focus(hwnd: HWND, id: i32, notif: u32) -> Option<LRESUL
         ControlId::HotkeySmartLastWord => crate::app::HotkeySlot::SmartLastWord,
         ControlId::HotkeySmartLastSequence => crate::app::HotkeySlot::SmartLastSequence,
         ControlId::HotkeySmartSelection => crate::app::HotkeySlot::SmartSelection,
+        ControlId::HotkeySwitchCase => crate::app::HotkeySlot::SwitchCase,
         _ => return None,
     };
 

@@ -9,7 +9,7 @@ use crate::{
     input::hotkeys::{
         HK_CONVERT_LAST_SEQUENCE_ID, HK_CONVERT_LAST_WORD_ID, HK_CONVERT_SELECTION_ID,
         HK_PAUSE_TOGGLE_ID, HK_SMART_CONVERT_LAST_SEQUENCE_ID, HK_SMART_CONVERT_LAST_WORD_ID,
-        HK_SMART_CONVERT_SELECTION_ID, HK_SWITCH_LAYOUT_ID,
+        HK_SMART_CONVERT_SELECTION_ID, HK_SWITCH_CASE_ID, HK_SWITCH_LAYOUT_ID,
     },
 };
 
@@ -24,11 +24,12 @@ pub(crate) enum SequenceMatch {
 pub(crate) const DEFERRED_SEQUENCE_TIMER_ID: usize = 0x5301;
 pub(crate) const DEFERRED_SEQUENCE_DISAMBIGUATION_MS: u32 = 325;
 
-const SLOT_ORDER: [HotkeySlot; 8] = [
+const SLOT_ORDER: [HotkeySlot; 9] = [
     HotkeySlot::SwitchLayout,
     HotkeySlot::SmartLastWord,
     HotkeySlot::SmartLastSequence,
     HotkeySlot::SmartSelection,
+    HotkeySlot::SwitchCase,
     HotkeySlot::LastWord,
     HotkeySlot::LastSequence,
     HotkeySlot::Selection,
@@ -61,6 +62,7 @@ pub(crate) fn progress_for_slot_mut(
         HotkeySlot::SmartLastWord => &mut state.hotkey_sequence_progress.smart_last_word,
         HotkeySlot::SmartLastSequence => &mut state.hotkey_sequence_progress.smart_last_sequence,
         HotkeySlot::SmartSelection => &mut state.hotkey_sequence_progress.smart_selection,
+        HotkeySlot::SwitchCase => &mut state.hotkey_sequence_progress.switch_case,
     }
 }
 
@@ -77,6 +79,7 @@ fn progress_for_slot(
         HotkeySlot::SmartLastWord => &state.hotkey_sequence_progress.smart_last_word,
         HotkeySlot::SmartLastSequence => &state.hotkey_sequence_progress.smart_last_sequence,
         HotkeySlot::SmartSelection => &state.hotkey_sequence_progress.smart_selection,
+        HotkeySlot::SwitchCase => &state.hotkey_sequence_progress.switch_case,
     }
 }
 
@@ -90,6 +93,7 @@ pub(crate) fn hotkey_id_for_slot(slot: crate::app::HotkeySlot) -> i32 {
         HotkeySlot::SmartLastWord => HK_SMART_CONVERT_LAST_WORD_ID,
         HotkeySlot::SmartLastSequence => HK_SMART_CONVERT_LAST_SEQUENCE_ID,
         HotkeySlot::SmartSelection => HK_SMART_CONVERT_SELECTION_ID,
+        HotkeySlot::SwitchCase => HK_SWITCH_CASE_ID,
     }
 }
 

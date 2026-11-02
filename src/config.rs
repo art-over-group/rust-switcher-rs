@@ -54,6 +54,20 @@ pub struct Config {
     pub start_minimized: bool,
     #[serde(default)]
     pub theme_dark: bool,
+    #[serde(default)]
+    pub clipboard_fallback_enabled: bool,
+    #[serde(default)]
+    pub grammar_correction_enabled: bool,
+    #[serde(default = "default_tray_feedback_enabled")]
+    pub tray_feedback_enabled: bool,
+    #[serde(default = "default_richer_undo_enabled")]
+    pub richer_undo_enabled: bool,
+    #[serde(default = "default_overlay_enabled")]
+    pub overlay_enabled: bool,
+    #[serde(default = "default_sound_enabled")]
+    pub sound_enabled: bool,
+    #[serde(default = "default_sticky_shift_enabled")]
+    pub sticky_shift_enabled: bool,
 
     pub hotkey_convert_last_word: Option<Hotkey>,
     #[serde(default)]
@@ -61,6 +75,10 @@ pub struct Config {
     pub hotkey_convert_selection: Option<Hotkey>,
     pub hotkey_switch_layout: Option<Hotkey>,
     pub hotkey_pause: Option<Hotkey>,
+    /// Case-cycle hotkey for the selected text. Unassigned by default so the
+    /// global registration never hijacks chords like Ctrl+Shift+Z (Redo).
+    #[serde(default)]
+    pub hotkey_switch_case: Option<Hotkey>,
 
     #[serde(default)]
     pub hotkey_convert_last_word_sequence: Option<HotkeySequence>,
@@ -72,6 +90,8 @@ pub struct Config {
     pub hotkey_convert_selection_sequence: Option<HotkeySequence>,
     #[serde(default)]
     pub hotkey_switch_layout_sequence: Option<HotkeySequence>,
+    #[serde(default)]
+    pub hotkey_switch_case_sequence: Option<HotkeySequence>,
 
     #[serde(default)]
     pub smarter_hotkeys_enabled: bool,
@@ -119,6 +139,26 @@ const fn default_autoconvert_feature_enabled() -> bool {
     true
 }
 
+const fn default_tray_feedback_enabled() -> bool {
+    true
+}
+
+const fn default_richer_undo_enabled() -> bool {
+    true
+}
+
+const fn default_overlay_enabled() -> bool {
+    true
+}
+
+const fn default_sound_enabled() -> bool {
+    true
+}
+
+const fn default_sticky_shift_enabled() -> bool {
+    true
+}
+
 fn default_smart_hotkey_convert_last_word_sequence() -> Option<HotkeySequence> {
     Some(triple_modifier_sequence(MOD_SHIFT.0, MODVK_LSHIFT))
 }
@@ -137,12 +177,20 @@ impl Default for Config {
             delay_ms: CONVERSION_DELAY_MS,
             start_minimized: false,
             theme_dark: false,
+            clipboard_fallback_enabled: false,
+            grammar_correction_enabled: false,
+            tray_feedback_enabled: default_tray_feedback_enabled(),
+            richer_undo_enabled: default_richer_undo_enabled(),
+            overlay_enabled: default_overlay_enabled(),
+            sound_enabled: default_sound_enabled(),
+            sticky_shift_enabled: default_sticky_shift_enabled(),
 
             hotkey_switch_layout: None,
             hotkey_pause: None,
             hotkey_convert_last_word: None,
             hotkey_convert_last_sequence: None,
             hotkey_convert_selection: None,
+            hotkey_switch_case: None,
 
             hotkey_convert_last_word_sequence: Some(double_modifier_sequence(
                 MOD_SHIFT.0,
@@ -165,6 +213,7 @@ impl Default for Config {
                 third: None,
                 max_gap_ms: 1000,
             }),
+            hotkey_switch_case_sequence: None,
 
             smarter_hotkeys_enabled: false,
             autoconvert_feature_enabled: default_autoconvert_feature_enabled(),

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "word": "Xcode",
+      "forms": ["xcode", "XCODE"],
+      "case_sensitive": false
+    },
+    {
+      "word": "vpn",
+      "forms": [],
+      "case_sensitive": false
+    },
+    {
+      "word": "TypeScript",
+      "forms": ["typescript", "TS"],
+      "case_sensitive": false
+    }
+  ]
+}
