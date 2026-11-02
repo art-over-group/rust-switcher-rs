@@ -93,6 +93,113 @@ fn config_loads_missing_autoconvert_feature_flag_as_enabled() {
 }
 
 #[test]
+fn config_loads_missing_overlay_flag_as_enabled() {
+    let _env = AppDataOverride::new("appdata-legacy-overlay");
+    let path = config::config_path().unwrap();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, "delay_ms = 100\n").unwrap();
+
+    let loaded = config::load().unwrap();
+
+    assert!(loaded.overlay_enabled);
+}
+
+#[test]
+fn config_overlay_flag_roundtrips() {
+    let _env = AppDataOverride::new("appdata-overlay-roundtrip");
+
+    let cfg = Config {
+        overlay_enabled: false,
+        ..Default::default()
+    };
+
+    config::save(&cfg).unwrap();
+    let loaded = config::load().unwrap();
+
+    assert!(!loaded.overlay_enabled);
+}
+
+#[test]
+fn config_loads_missing_sound_flag_as_enabled() {
+    let _env = AppDataOverride::new("appdata-legacy-sound");
+    let path = config::config_path().unwrap();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, "delay_ms = 100\n").unwrap();
+
+    let loaded = config::load().unwrap();
+
+    assert!(loaded.sound_enabled);
+}
+
+#[test]
+fn config_sound_flag_roundtrips() {
+    let _env = AppDataOverride::new("appdata-sound-roundtrip");
+
+    let cfg = Config {
+        sound_enabled: false,
+        ..Default::default()
+    };
+
+    config::save(&cfg).unwrap();
+    let loaded = config::load().unwrap();
+
+    assert!(!loaded.sound_enabled);
+}
+
+#[test]
+fn config_loads_missing_sticky_shift_flag_as_enabled() {
+    let _env = AppDataOverride::new("appdata-legacy-sticky-shift");
+    let path = config::config_path().unwrap();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, "delay_ms = 100\n").unwrap();
+
+    let loaded = config::load().unwrap();
+
+    assert!(loaded.sticky_shift_enabled);
+}
+
+#[test]
+fn config_sticky_shift_flag_roundtrips() {
+    let _env = AppDataOverride::new("appdata-sticky-shift-roundtrip");
+
+    let cfg = Config {
+        sticky_shift_enabled: false,
+        ..Default::default()
+    };
+
+    config::save(&cfg).unwrap();
+    let loaded = config::load().unwrap();
+
+    assert!(!loaded.sticky_shift_enabled);
+}
+
+#[test]
+fn excluded_apps_default_contains_terminals() {
+    let cfg = Config::default();
+
+    assert!(cfg.excluded_apps.iter().any(|app| app == "cmd.exe"));
+    assert!(cfg
+        .excluded_apps
+        .iter()
+        .any(|app| app == "powershell.exe"));
+}
+
+#[test]
+fn excluded_apps_roundtrip() {
+    let _env = AppDataOverride::new("appdata-exclusions-roundtrip");
+
+    let cfg = Config {
+        excluded_apps: vec!["myterm.exe".to_owned()],
+        ..Default::default()
+    };
+
+    config::save(&cfg).unwrap();
+    let loaded = config::load().unwrap();
+
+    assert_eq!(loaded.excluded_apps, vec!["myterm.exe".to_owned()]);
+}
+
+#[test]
 fn config_save_rejects_invalid_sequences() {
     let _env = AppDataOverride::new("appdata-invalid");
 

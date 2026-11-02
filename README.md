@@ -15,6 +15,12 @@ developer or third parties.
 - Convert selected text (RU↔EN)
 - Convert the last typed sequence via a hotkey ("smart" conversion also handles selection)
 - Auto-convert the last word while typing (can be disabled in Settings; runtime toggle starts paused)
+- Conversion overlay near the caret showing the result (`from → to`)
+- Quiet sound tick on conversions (procedurally synthesized, no audio files)
+- Switch the case of selected text (`hello → HELLO → Hello`, bind the hotkey in Settings)
+- Sticky-Shift fix while typing (`СЛово → Слово`)
+- AutoConvert is off in terminals and console hosts by default
+  (customize `excluded_apps` in the config file)
 - Tray icon and quick actions menu
 - Light and dark UI themes
 - Settings are saved to a config file
@@ -38,6 +44,13 @@ cargo install rust-switcher
 
 Download `rust-switcher.exe` from Releases.
 
+## Enhanced MVP
+
+See:
+- `docs/mvp-enhanced-implementation.md`
+- `docs/troubleshooting/conversion-not-working.md`
+- `docs/security/offline-first-mvp.md`
+
 ## Configuration
 
 The config file is stored at:
@@ -51,6 +64,8 @@ Default hotkey sequences:
 * Convert selection: double tap Left Shift
 * Autoconvert toggle: double tap Right Ctrl
 * Switch layout: CapsLock
+* Switch selection case: unassigned by default — bind it in Settings
+  (a global `Ctrl+Shift+Z` would hijack "Redo" in other apps)
 
 To remove a binding, focus its hotkey field and press Backspace or Delete.
 

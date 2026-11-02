@@ -1,16 +1,19 @@
 use std::{
-    sync::{
-        OnceLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    env,
+    fs,
+    path::PathBuf,
+sync::{Mutex, OnceLock},
+sync::atomic::{AtomicBool, Ordering},
     thread,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
+
+use rust_switcher_core::dictionary::TermDictionary;
 
 use windows::Win32::UI::{
-    Input::KeyboardAndMouse::VIRTUAL_KEY, WindowsAndMessaging::GetForegroundWindow,
+    Input::KeyboardAndMouse::VIRTUAL_KEY,
+    WindowsAndMessaging::GetForegroundWindow,
 };
-
 use super::{
     convert::expected_direction_for_foreground_window,
     mapping::{ConversionDirection, conversion_direction_for_text, convert_ru_en_with_direction},
@@ -25,7 +28,7 @@ use crate::{
 const VK_BACKSPACE_KEY: VIRTUAL_KEY = VIRTUAL_KEY(0x08);
 const VK_LEFT_KEY: VIRTUAL_KEY = VIRTUAL_KEY(0x25);
 const VK_RIGHT_KEY: VIRTUAL_KEY = VIRTUAL_KEY(0x27);
-const MIN_WORD_LEN: usize = 4;
+const MIN_WORD_LEN: usize = 3;
 const MIN_CONVERTED_CONFIDENCE: f64 = 0.70;
 const MIN_CONFIDENCE_GAIN: f64 = 0.25;
 static AUTOCONVERT_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
@@ -103,6 +106,10 @@ pub fn autoconvert_last_word(state: &mut AppState) {
         tracing::warn!("foreground window is null");
         return;
     }
+    if crate::platform::win::app_rules::foreground_app_excluded() {
+        tracing::trace!(reason = "excluded_app", "autoconvert skip");
+        return;
+    }
     let _guard = match AutoconvertGuard::try_acquire() {
         Ok(g) => g,
         Err(reason) => {
@@ -116,6 +123,27 @@ pub fn autoconvert_last_word(state: &mut AppState) {
         return;
     };
     let mut restore = JournalRestore::new(&payload);
+
+    // Sticky-Shift normalization takes precedence: a mixed-case word typed
+    // with a stuck Shift is unambiguous, and the layout was correct all
+    // along, so the fix must not switch the layout.
+    if let Some(fixed) = sticky_shift_fix(&payload) {
+        if let Err(err) = apply_last_word_replacement(&payload, &fixed) {
+            tracing::warn!(error = %err.as_str(), "sticky shift apply failed");
+            return;
+        }
+        state.last_conversion = Some(crate::app::ConversionFeedback::new(
+            crate::app::ConversionSource::AutoConvert,
+            payload.run.text.as_str(),
+            fixed.as_str(),
+        ));
+        update_journal(&payload, &fixed);
+        crate::input_journal::mark_last_token_autoconverted();
+        restore.commit();
+        tracing::trace!(word = %payload.run.text, fixed = %fixed, "sticky shift applied");
+        return;
+    }
+
     let converted = match autoconvert_candidate(&payload) {
         Ok(v) => v,
         Err(reason) => {
@@ -133,6 +161,11 @@ pub fn autoconvert_last_word(state: &mut AppState) {
         tracing::warn!(error = %err.as_str(), "autoconvert apply failed");
         return;
     }
+    state.last_conversion = Some(crate::app::ConversionFeedback::new(
+        crate::app::ConversionSource::AutoConvert,
+        payload.run.text.as_str(),
+        converted.as_str(),
+    ));
     update_journal(&payload, &converted);
     crate::input_journal::mark_last_token_autoconverted();
     restore.commit();
@@ -208,6 +241,7 @@ impl Drop for JournalRestoreSequence<'_> {
 }
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum SkipReason {
+    ProtectedTerm,
     Reentry,
     SuffixHasNewline,
     NotAWord,
@@ -221,6 +255,7 @@ pub(crate) enum SkipReason {
 impl SkipReason {
     fn as_str(self) -> &'static str {
         match self {
+            SkipReason::ProtectedTerm => "protected_term",
             SkipReason::Reentry => "reentry",
             SkipReason::SuffixHasNewline => "suffix_has_newline",
             SkipReason::NotAWord => "not_a_word",
@@ -313,9 +348,33 @@ impl ApplyError {
 fn autoconvert_candidate(p: &LastRunPayload) -> Result<String, SkipReason> {
     ensure_no_newline(p)?;
     ensure_has_letters(&p.run.text)?;
+    let dictionary = user_terms_dictionary();
+    if dictionary.is_protected(&p.run.text) {
+        return Err(SkipReason::ProtectedTerm);
+    }
     let converted = convert_with_layout_fallback(&p.run.text, &p.run.layout);
     ensure_changed(&p.run.text, &converted)?;
     Ok(converted)
+}
+
+/// Applies sticky-Shift normalization ("СЛово" → "Слово") when the feature is
+/// enabled and the term is not protected. Runs before the layout-conversion
+/// path because the mixed-case pattern is an unambiguous signal that the
+/// layout was already correct.
+fn sticky_shift_fix(p: &LastRunPayload) -> Option<String> {
+    let cfg = crate::config::load().unwrap_or_default();
+    if !cfg.sticky_shift_enabled {
+        return None;
+    }
+
+    let dictionary = user_terms_dictionary();
+    if dictionary.is_protected(&p.run.text) {
+        tracing::trace!(text = %p.run.text, "dictionary protected term: sticky shift skipped");
+        return None;
+    }
+
+    let fixed = rust_switcher_core::text::sticky_case::fix_sticky_shift(&p.run.text)?;
+    (fixed != p.run.text).then_some(fixed)
 }
 fn language_detector() -> &'static lingua::LanguageDetector {
     use lingua::{Language, LanguageDetector, LanguageDetectorBuilder};
@@ -512,9 +571,23 @@ fn convert_last_word_impl(state: &mut AppState, switch_layout: bool, mode: Direc
         tracing::trace!(text = %payload.run.text, "smart convert skipped: text already looks correct");
         return true;
     }
+    {
+        let dictionary = user_terms_dictionary();
+        if dictionary.is_protected(&payload.run.text) {
+            tracing::trace!(text = %payload.run.text, "dictionary protected term: conversion skipped");
+            return true;
+        }
+    }
     let converted = convert_with_mode(&payload.run.text, &payload.run.layout, mode);
     tracing::trace!(%converted, "converted");
     if apply_last_word_conversion(&payload, &converted) {
+        if converted != payload.run.text {
+            state.last_conversion = Some(crate::app::ConversionFeedback::new(
+                crate::app::ConversionSource::LastWord,
+                payload.run.text.as_str(),
+                converted.as_str(),
+            ));
+        }
         update_journal(&payload, &converted);
         restore.commit();
         if switch_layout {
@@ -557,6 +630,13 @@ fn convert_last_sequence_impl(state: &mut AppState, switch_layout: bool, mode: D
     let converted = convert_sequence_runs(&payload.runs, mode);
     tracing::trace!(%converted, "converted");
     if apply_last_sequence_conversion(&payload, &converted) {
+        if converted != payload.seq_text {
+            state.last_conversion = Some(crate::app::ConversionFeedback::new(
+                crate::app::ConversionSource::LastSequence,
+                payload.seq_text.as_str(),
+                converted.as_str(),
+            ));
+        }
         update_journal_sequence(&payload, &converted, mode);
         restore.commit();
         if switch_layout {
@@ -568,6 +648,48 @@ fn convert_last_sequence_impl(state: &mut AppState, switch_layout: bool, mode: D
     } else {
         tracing::warn!("convert apply failed");
     }
+}
+
+fn user_terms_dictionary() -> TermDictionary {
+    static CACHE: Mutex<Option<(Option<SystemTime>, TermDictionary)>> = Mutex::new(None);
+    let path = env::var("APPDATA").ok().map(|appdata| {
+        PathBuf::from(appdata)
+            .join("RustSwitcher")
+            .join("user_terms.json")
+    });
+    let mtime = path
+        .as_ref()
+        .and_then(|path| fs::metadata(path).ok())
+        .and_then(|metadata| metadata.modified().ok());
+
+    let mut cache = CACHE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some((cached_mtime, dictionary)) = cache.as_ref()
+        && *cached_mtime == mtime
+    {
+        return dictionary.clone();
+    }
+
+    let dictionary = path
+        .as_ref()
+        .and_then(|path| fs::read_to_string(path).ok())
+        .and_then(|text| TermDictionary::from_json_str(&text).ok())
+        .unwrap_or_default();
+    if let Some(path) = path.as_ref() {
+        // Console-visible status works in release builds as well, unlike
+        // tracing which is primarily development-facing.
+        eprintln!(
+            "Rust Switcher: loaded {} terms from {}",
+            dictionary.entries.len(),
+            path.display()
+        );
+        tracing::info!(
+            path = %path.display(),
+            entries = dictionary.entries.len(),
+            "user terms dictionary loaded or reloaded"
+        );
+    }
+    *cache = Some((mtime, dictionary.clone()));
+    dictionary
 }
 
 fn foreground_window_alive() -> bool {

@@ -281,6 +281,33 @@ fn duplicate_last_word_and_last_sequence_err() {
 }
 
 #[test]
+fn switch_case_sequence_conflict_is_rejected() {
+    let dup = seq1(MOD_CONTROL.0, u32::from(b'Z'));
+
+    let mut cfg = mk_cfg(None, None, None, None, None);
+    cfg.smart_hotkey_convert_last_word_sequence = None;
+    cfg.smart_hotkey_convert_last_sequence_sequence = None;
+    cfg.smart_hotkey_convert_selection_sequence = None;
+    cfg.hotkey_convert_selection_sequence = Some(dup);
+    cfg.hotkey_switch_case_sequence = Some(dup);
+
+    let err = assert_err(cfg);
+
+    assert_has_common_error_shape(&err);
+    assert!(err.contains("Switch selection case"), "{err}");
+    assert!(err.contains(CONVERT_SELECTION), "{err}");
+}
+
+#[test]
+fn switch_case_unassigned_by_default_passes_validation() {
+    let cfg = Config::default();
+
+    assert!(cfg.hotkey_switch_case.is_none());
+    assert!(cfg.hotkey_switch_case_sequence.is_none());
+    assert_ok(cfg);
+}
+
+#[test]
 fn duplicate_pause_and_layout_err() {
     let dup = seq1(MOD_ALT.0, u32::from(b'B'));
 

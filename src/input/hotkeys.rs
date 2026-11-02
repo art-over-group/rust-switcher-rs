@@ -18,6 +18,7 @@ pub enum HotkeyAction {
     SmartConvertLastWord,
     SmartConvertLastSequence,
     SmartConvertSelection,
+    SwitchCase,
 }
 
 // Диапазон 20000+ чтобы не пересекаться с control ids в WM_COMMAND
@@ -31,6 +32,7 @@ pub const HK_SWITCH_LAYOUT_ID: i32 = HK_ID_BASE + 5;
 pub const HK_SMART_CONVERT_LAST_WORD_ID: i32 = HK_ID_BASE + 6;
 pub const HK_SMART_CONVERT_LAST_SEQUENCE_ID: i32 = HK_ID_BASE + 7;
 pub const HK_SMART_CONVERT_SELECTION_ID: i32 = HK_ID_BASE + 8;
+pub const HK_SWITCH_CASE_ID: i32 = HK_ID_BASE + 9;
 
 pub fn action_from_id(id: i32) -> Option<HotkeyAction> {
     match id {
@@ -42,6 +44,7 @@ pub fn action_from_id(id: i32) -> Option<HotkeyAction> {
         HK_SMART_CONVERT_LAST_WORD_ID => Some(HotkeyAction::SmartConvertLastWord),
         HK_SMART_CONVERT_LAST_SEQUENCE_ID => Some(HotkeyAction::SmartConvertLastSequence),
         HK_SMART_CONVERT_SELECTION_ID => Some(HotkeyAction::SmartConvertSelection),
+        HK_SWITCH_CASE_ID => Some(HotkeyAction::SwitchCase),
         _ => None,
     }
 }
@@ -65,6 +68,7 @@ pub fn unregister_all(hwnd: HWND) -> windows::core::Result<()> {
         HK_SMART_CONVERT_LAST_WORD_ID,
         HK_SMART_CONVERT_LAST_SEQUENCE_ID,
         HK_SMART_CONVERT_SELECTION_ID,
+        HK_SWITCH_CASE_ID,
     ] {
         unregister_one_quiet(hwnd, id)?;
     }
@@ -120,6 +124,7 @@ pub fn register_from_config(hwnd: HWND, cfg: &config::Config) -> windows::core::
     )?;
     register_one(hwnd, HK_CONVERT_SELECTION_ID, cfg.hotkey_convert_selection)?;
     register_one(hwnd, HK_SWITCH_LAYOUT_ID, cfg.hotkey_switch_layout)?;
+    register_one(hwnd, HK_SWITCH_CASE_ID, cfg.hotkey_switch_case)?;
 
     Ok(())
 }
