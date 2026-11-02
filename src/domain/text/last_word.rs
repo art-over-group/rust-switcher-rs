@@ -1,16 +1,19 @@
 use std::{
-    sync::{
-        OnceLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    env,
+    fs,
+    path::PathBuf,
+sync::{Mutex, OnceLock},
+sync::atomic::{AtomicBool, Ordering},
     thread,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
+
+use rust_switcher_core::dictionary::TermDictionary;
 
 use windows::Win32::UI::{
-    Input::KeyboardAndMouse::VIRTUAL_KEY, WindowsAndMessaging::GetForegroundWindow,
+    Input::KeyboardAndMouse::VIRTUAL_KEY,
+    WindowsAndMessaging::GetForegroundWindow,
 };
-
 use super::{
     convert::expected_direction_for_foreground_window,
     mapping::{ConversionDirection, conversion_direction_for_text, convert_ru_en_with_direction},
@@ -25,7 +28,7 @@ use crate::{
 const VK_BACKSPACE_KEY: VIRTUAL_KEY = VIRTUAL_KEY(0x08);
 const VK_LEFT_KEY: VIRTUAL_KEY = VIRTUAL_KEY(0x25);
 const VK_RIGHT_KEY: VIRTUAL_KEY = VIRTUAL_KEY(0x27);
-const MIN_WORD_LEN: usize = 4;
+const MIN_WORD_LEN: usize = 3;
 const MIN_CONVERTED_CONFIDENCE: f64 = 0.70;
 const MIN_CONFIDENCE_GAIN: f64 = 0.25;
 static AUTOCONVERT_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
@@ -208,6 +211,7 @@ impl Drop for JournalRestoreSequence<'_> {
 }
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum SkipReason {
+    ProtectedTerm,
     Reentry,
     SuffixHasNewline,
     NotAWord,
@@ -221,6 +225,7 @@ pub(crate) enum SkipReason {
 impl SkipReason {
     fn as_str(self) -> &'static str {
         match self {
+            SkipReason::ProtectedTerm => "protected_term",
             SkipReason::Reentry => "reentry",
             SkipReason::SuffixHasNewline => "suffix_has_newline",
             SkipReason::NotAWord => "not_a_word",
@@ -313,7 +318,10 @@ impl ApplyError {
 fn autoconvert_candidate(p: &LastRunPayload) -> Result<String, SkipReason> {
     ensure_no_newline(p)?;
     ensure_has_letters(&p.run.text)?;
-    let converted = convert_with_layout_fallback(&p.run.text, &p.run.layout);
+    let dictionary = user_terms_dictionary();
+    if dictionary.is_protected(&p.run.text) {
+        return Err(SkipReason::ProtectedTerm);
+    }    let converted = convert_with_layout_fallback(&p.run.text, &p.run.layout);
     ensure_changed(&p.run.text, &converted)?;
     Ok(converted)
 }
@@ -512,6 +520,13 @@ fn convert_last_word_impl(state: &mut AppState, switch_layout: bool, mode: Direc
         tracing::trace!(text = %payload.run.text, "smart convert skipped: text already looks correct");
         return true;
     }
+    {
+        let dictionary = user_terms_dictionary();
+        if dictionary.is_protected(&payload.run.text) {
+            tracing::trace!(text = %payload.run.text, "dictionary protected term: conversion skipped");
+            return true;
+        }
+    }
     let converted = convert_with_mode(&payload.run.text, &payload.run.layout, mode);
     tracing::trace!(%converted, "converted");
     if apply_last_word_conversion(&payload, &converted) {
@@ -568,6 +583,48 @@ fn convert_last_sequence_impl(state: &mut AppState, switch_layout: bool, mode: D
     } else {
         tracing::warn!("convert apply failed");
     }
+}
+
+fn user_terms_dictionary() -> TermDictionary {
+    static CACHE: Mutex<Option<(Option<SystemTime>, TermDictionary)>> = Mutex::new(None);
+    let path = env::var("APPDATA").ok().map(|appdata| {
+        PathBuf::from(appdata)
+            .join("RustSwitcher")
+            .join("user_terms.json")
+    });
+    let mtime = path
+        .as_ref()
+        .and_then(|path| fs::metadata(path).ok())
+        .and_then(|metadata| metadata.modified().ok());
+
+    let mut cache = CACHE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some((cached_mtime, dictionary)) = cache.as_ref()
+        && *cached_mtime == mtime
+    {
+        return dictionary.clone();
+    }
+
+    let dictionary = path
+        .as_ref()
+        .and_then(|path| fs::read_to_string(path).ok())
+        .and_then(|text| TermDictionary::from_json_str(&text).ok())
+        .unwrap_or_default();
+    if let Some(path) = path.as_ref() {
+        // Console-visible status works in release builds as well, unlike
+        // tracing which is primarily development-facing.
+        eprintln!(
+            "Rust Switcher: loaded {} terms from {}",
+            dictionary.entries.len(),
+            path.display()
+        );
+        tracing::info!(
+            path = %path.display(),
+            entries = dictionary.entries.len(),
+            "user terms dictionary loaded or reloaded"
+        );
+    }
+    *cache = Some((mtime, dictionary.clone()));
+    dictionary
 }
 
 fn foreground_window_alive() -> bool {

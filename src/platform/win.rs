@@ -6,6 +6,7 @@
 //! present a settings window and respond to user actions.
 
 mod autostart;
+pub(crate) mod clipboard;
 mod commands;
 pub(crate) mod hotkey_format;
 pub(crate) mod keyboard;
@@ -949,14 +950,15 @@ fn layout_hotkey_shares_sequence_with(
     layout.is_some() && layout == sequence
 }
 
-fn handle_convert_last_word_hotkey(state: &mut AppState) {
+fn handle_convert_last_word_hotkey(state: &mut AppState) -> bool {
     if last_word_hotkey_should_try_selection_first(state)
         && crate::domain::text::convert::convert_selection_if_any(state)
     {
-        return;
+        return true;
     }
 
     crate::conversion::convert_last_word(state);
+    true
 }
 
 fn handle_smart_convert_last_word_hotkey(state: &mut AppState) {
@@ -1000,7 +1002,20 @@ fn execute_runtime_command(hwnd: HWND, state: &mut AppState, command: RuntimeCom
                 tracing::warn!(msg = "autoconvert_toggle", source = "hotkey_pause_toggle");
                 handle_pause_toggle(hwnd, state);
             }
-            HotkeyAction::ConvertLastWord => handle_convert_last_word_hotkey(state),
+            HotkeyAction::ConvertLastWord => {
+                if handle_convert_last_word_hotkey(state) {
+                    let tray_feedback_enabled = crate::config::load()
+                        .map(|cfg| cfg.tray_feedback_enabled)
+                        .unwrap_or(true);
+                    if tray_feedback_enabled {
+                        let _ = crate::platform::win::tray::balloon_info(
+                            hwnd,
+                            "Rust Switcher",
+                            "Converted. Press Ctrl+Z to undo.",
+                        );
+                    }
+                }
+            }
             HotkeyAction::ConvertLastSequence => crate::conversion::convert_last_sequence(state),
             HotkeyAction::ConvertSelection => crate::conversion::convert_selection(state),
             HotkeyAction::SmartConvertLastWord => handle_smart_convert_last_word_hotkey(state),
