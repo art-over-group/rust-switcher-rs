@@ -370,6 +370,7 @@ pub struct Checkboxes {
     pub autoconvert_feature: HWND,
     pub overlay: HWND,
     pub sound: HWND,
+    pub sticky_shift: HWND,
 }
 
 #[derive(Debug, Default)]
@@ -410,6 +411,7 @@ pub enum ControlId {
     AutoconvertFeature = 1007,
     OverlayEnabled = 1008,
     SoundEnabled = 1009,
+    StickyShiftEnabled = 1010,
 
     HotkeyLastWord = 1201,
     HotkeyLastSequence = 1202,
@@ -438,6 +440,7 @@ impl ControlId {
             1007 => Some(Self::AutoconvertFeature),
             1008 => Some(Self::OverlayEnabled),
             1009 => Some(Self::SoundEnabled),
+            1010 => Some(Self::StickyShiftEnabled),
 
             1201 => Some(Self::HotkeyLastWord),
             1202 => Some(Self::HotkeyLastSequence),

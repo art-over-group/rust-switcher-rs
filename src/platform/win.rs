@@ -240,6 +240,7 @@ fn apply_config_to_ui(
     );
     helpers::set_checkbox(state.checkboxes.overlay, cfg.overlay_enabled);
     helpers::set_checkbox(state.checkboxes.sound, cfg.sound_enabled);
+    helpers::set_checkbox(state.checkboxes.sticky_shift, cfg.sticky_shift_enabled);
 
     state.hotkey_values = crate::app::HotkeyValues::from_config(cfg);
     state.hotkey_sequence_values = crate::app::HotkeySequenceValues::from_config_all(cfg);
@@ -313,6 +314,7 @@ fn read_ui_to_config(state: &AppState, mut cfg: config::Config) -> config::Confi
         helpers::get_checkbox(state.checkboxes.autoconvert_feature);
     cfg.overlay_enabled = helpers::get_checkbox(state.checkboxes.overlay);
     cfg.sound_enabled = helpers::get_checkbox(state.checkboxes.sound);
+    cfg.sticky_shift_enabled = helpers::get_checkbox(state.checkboxes.sticky_shift);
 
     cfg.hotkey_convert_last_word_sequence = state.hotkey_sequence_values.last_word;
     cfg.hotkey_convert_last_sequence_sequence = state.hotkey_sequence_values.last_sequence;

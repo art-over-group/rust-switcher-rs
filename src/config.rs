@@ -66,6 +66,8 @@ pub struct Config {
     pub overlay_enabled: bool,
     #[serde(default = "default_sound_enabled")]
     pub sound_enabled: bool,
+    #[serde(default = "default_sticky_shift_enabled")]
+    pub sticky_shift_enabled: bool,
 
     pub hotkey_convert_last_word: Option<Hotkey>,
     #[serde(default)]
@@ -153,6 +155,10 @@ const fn default_sound_enabled() -> bool {
     true
 }
 
+const fn default_sticky_shift_enabled() -> bool {
+    true
+}
+
 fn default_smart_hotkey_convert_last_word_sequence() -> Option<HotkeySequence> {
     Some(triple_modifier_sequence(MOD_SHIFT.0, MODVK_LSHIFT))
 }
@@ -177,6 +183,7 @@ impl Default for Config {
             richer_undo_enabled: default_richer_undo_enabled(),
             overlay_enabled: default_overlay_enabled(),
             sound_enabled: default_sound_enabled(),
+            sticky_shift_enabled: default_sticky_shift_enabled(),
 
             hotkey_switch_layout: None,
             hotkey_pause: None,

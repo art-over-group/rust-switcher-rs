@@ -18,6 +18,7 @@ developer or third parties.
 - Conversion overlay near the caret showing the result (`from → to`)
 - Quiet sound tick on conversions (procedurally synthesized, no audio files)
 - Switch the case of selected text (`hello → HELLO → Hello`, bind the hotkey in Settings)
+- Sticky-Shift fix while typing (`СЛово → Слово`)
 - Tray icon and quick actions menu
 - Light and dark UI themes
 - Settings are saved to a config file

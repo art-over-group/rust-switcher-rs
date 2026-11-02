@@ -10,6 +10,8 @@ UI toggle. You can set these in `%APPDATA%\RustSwitcher\config.json`:
   "Show conversion overlay" checkbox in Settings)
 - `sound_enabled` defaults to `true` (also exposed as the
   "Play conversion sound" checkbox in Settings)
+- `sticky_shift_enabled` defaults to `true` (also exposed as the
+  "Fix sticky Shift" checkbox in Settings)
 
 Notes:
 - `clipboard_fallback_enabled` gates `convert_selection_clipboard_fallback`
@@ -29,6 +31,10 @@ Notes:
   (`src/platform/win/sound.rs`). The cue is synthesized procedurally in
   `rust-switcher-core::sound` (no audio assets); playback via `PlaySoundW`
   is asynchronous and best-effort. See `docs/features/sound-feedback.md`.
+- `sticky_shift_enabled` gates the "СЛово → Слово" normalization inside the
+  AutoConvert pipeline (`last_word.rs::sticky_shift_fix`); the transform is
+  pure logic in `rust-switcher-core::text::sticky_case` and never switches
+  the layout. See `docs/features/sticky-shift.md`.
 - `grammar_correction_enabled` is reserved: no grammar feature is implemented
   (see `docs/features/grammar-correction.md`)
 - all flags are absent in older config files and receive safe defaults via

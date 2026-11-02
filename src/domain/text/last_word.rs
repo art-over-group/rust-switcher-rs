@@ -119,6 +119,27 @@ pub fn autoconvert_last_word(state: &mut AppState) {
         return;
     };
     let mut restore = JournalRestore::new(&payload);
+
+    // Sticky-Shift normalization takes precedence: a mixed-case word typed
+    // with a stuck Shift is unambiguous, and the layout was correct all
+    // along, so the fix must not switch the layout.
+    if let Some(fixed) = sticky_shift_fix(&payload) {
+        if let Err(err) = apply_last_word_replacement(&payload, &fixed) {
+            tracing::warn!(error = %err.as_str(), "sticky shift apply failed");
+            return;
+        }
+        state.last_conversion = Some(crate::app::ConversionFeedback::new(
+            crate::app::ConversionSource::AutoConvert,
+            payload.run.text.as_str(),
+            fixed.as_str(),
+        ));
+        update_journal(&payload, &fixed);
+        crate::input_journal::mark_last_token_autoconverted();
+        restore.commit();
+        tracing::trace!(word = %payload.run.text, fixed = %fixed, "sticky shift applied");
+        return;
+    }
+
     let converted = match autoconvert_candidate(&payload) {
         Ok(v) => v,
         Err(reason) => {
@@ -326,9 +347,30 @@ fn autoconvert_candidate(p: &LastRunPayload) -> Result<String, SkipReason> {
     let dictionary = user_terms_dictionary();
     if dictionary.is_protected(&p.run.text) {
         return Err(SkipReason::ProtectedTerm);
-    }    let converted = convert_with_layout_fallback(&p.run.text, &p.run.layout);
+    }
+    let converted = convert_with_layout_fallback(&p.run.text, &p.run.layout);
     ensure_changed(&p.run.text, &converted)?;
     Ok(converted)
+}
+
+/// Applies sticky-Shift normalization ("СЛово" → "Слово") when the feature is
+/// enabled and the term is not protected. Runs before the layout-conversion
+/// path because the mixed-case pattern is an unambiguous signal that the
+/// layout was already correct.
+fn sticky_shift_fix(p: &LastRunPayload) -> Option<String> {
+    let cfg = crate::config::load().unwrap_or_default();
+    if !cfg.sticky_shift_enabled {
+        return None;
+    }
+
+    let dictionary = user_terms_dictionary();
+    if dictionary.is_protected(&p.run.text) {
+        tracing::trace!(text = %p.run.text, "dictionary protected term: sticky shift skipped");
+        return None;
+    }
+
+    let fixed = rust_switcher_core::text::sticky_case::fix_sticky_shift(&p.run.text)?;
+    (fixed != p.run.text).then_some(fixed)
 }
 fn language_detector() -> &'static lingua::LanguageDetector {
     use lingua::{Language, LanguageDetector, LanguageDetectorBuilder};
