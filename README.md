@@ -15,6 +15,7 @@ developer or third parties.
 - Convert selected text (RU↔EN)
 - Convert the last typed sequence via a hotkey ("smart" conversion also handles selection)
 - Auto-convert the last word while typing (can be disabled in Settings; runtime toggle starts paused)
+- Conversion overlay near the caret showing the result (`from → to`)
 - Tray icon and quick actions menu
 - Light and dark UI themes
 - Settings are saved to a config file
@@ -37,6 +38,13 @@ cargo install rust-switcher
 ### From GitHub Releases
 
 Download `rust-switcher.exe` from Releases.
+
+## Enhanced MVP
+
+See:
+- `docs/mvp-enhanced-implementation.md`
+- `docs/troubleshooting/conversion-not-working.md`
+- `docs/security/offline-first-mvp.md`
 
 ## Configuration
 
