@@ -8,6 +8,8 @@ UI toggle. You can set these in `%APPDATA%\RustSwitcher\config.json`:
 - `richer_undo_enabled` defaults to `true`
 - `overlay_enabled` defaults to `true` (also exposed as the
   "Show conversion overlay" checkbox in Settings)
+- `sound_enabled` defaults to `true` (also exposed as the
+  "Play conversion sound" checkbox in Settings)
 
 Notes:
 - `clipboard_fallback_enabled` gates `convert_selection_clipboard_fallback`
@@ -23,6 +25,10 @@ Notes:
   result falls back to a tray balloon. When the overlay is enabled, the
   separate "Converted. Press Ctrl+Z to undo." last-word balloon is suppressed
   to avoid double feedback.
+- `sound_enabled` gates the quiet conversion tick
+  (`src/platform/win/sound.rs`). The cue is synthesized procedurally in
+  `rust-switcher-core::sound` (no audio assets); playback via `PlaySoundW`
+  is asynchronous and best-effort. See `docs/features/sound-feedback.md`.
 - `grammar_correction_enabled` is reserved: no grammar feature is implemented
   (see `docs/features/grammar-correction.md`)
 - all flags are absent in older config files and receive safe defaults via

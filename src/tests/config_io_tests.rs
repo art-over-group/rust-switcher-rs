@@ -120,6 +120,33 @@ fn config_overlay_flag_roundtrips() {
 }
 
 #[test]
+fn config_loads_missing_sound_flag_as_enabled() {
+    let _env = AppDataOverride::new("appdata-legacy-sound");
+    let path = config::config_path().unwrap();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, "delay_ms = 100\n").unwrap();
+
+    let loaded = config::load().unwrap();
+
+    assert!(loaded.sound_enabled);
+}
+
+#[test]
+fn config_sound_flag_roundtrips() {
+    let _env = AppDataOverride::new("appdata-sound-roundtrip");
+
+    let cfg = Config {
+        sound_enabled: false,
+        ..Default::default()
+    };
+
+    config::save(&cfg).unwrap();
+    let loaded = config::load().unwrap();
+
+    assert!(!loaded.sound_enabled);
+}
+
+#[test]
 fn config_save_rejects_invalid_sequences() {
     let _env = AppDataOverride::new("appdata-invalid");
 

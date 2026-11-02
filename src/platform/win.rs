@@ -13,6 +13,7 @@ pub(crate) mod keyboard;
 pub(crate) mod menu_theme;
 pub(crate) mod mouse;
 pub(crate) mod overlay;
+pub(crate) mod sound;
 pub mod state;
 pub(crate) mod tray;
 mod tray_dispatch;
@@ -238,6 +239,7 @@ fn apply_config_to_ui(
         cfg.autoconvert_feature_enabled,
     );
     helpers::set_checkbox(state.checkboxes.overlay, cfg.overlay_enabled);
+    helpers::set_checkbox(state.checkboxes.sound, cfg.sound_enabled);
 
     state.hotkey_values = crate::app::HotkeyValues::from_config(cfg);
     state.hotkey_sequence_values = crate::app::HotkeySequenceValues::from_config_all(cfg);
@@ -304,6 +306,7 @@ fn read_ui_to_config(state: &AppState, mut cfg: config::Config) -> config::Confi
     cfg.autoconvert_feature_enabled =
         helpers::get_checkbox(state.checkboxes.autoconvert_feature);
     cfg.overlay_enabled = helpers::get_checkbox(state.checkboxes.overlay);
+    cfg.sound_enabled = helpers::get_checkbox(state.checkboxes.sound);
 
     cfg.hotkey_convert_last_word_sequence = state.hotkey_sequence_values.last_word;
     cfg.hotkey_convert_last_sequence_sequence = state.hotkey_sequence_values.last_sequence;
@@ -1072,14 +1075,20 @@ fn process_next_runtime_command(hwnd: HWND, state: &mut AppState) {
     }
 }
 
-/// Presents feedback for a completed conversion (overlay, with balloon as the
-/// B4 fallback). Consumes `state.last_conversion` recorded by the domain layer.
+/// Presents feedback for a completed conversion (overlay + sound tick, with
+/// a balloon as the B4 fallback). Consumes `state.last_conversion` recorded
+/// by the domain layer.
 fn present_conversion_feedback(hwnd: HWND, state: &mut AppState) {
     let Some(feedback) = state.last_conversion.take() else {
         return;
     };
 
     let cfg = crate::config::load().unwrap_or_default();
+
+    if cfg.sound_enabled {
+        sound::play(sound::SoundCue::ConversionTick);
+    }
+
     if !cfg.overlay_enabled {
         return;
     }

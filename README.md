@@ -16,6 +16,7 @@ developer or third parties.
 - Convert the last typed sequence via a hotkey ("smart" conversion also handles selection)
 - Auto-convert the last word while typing (can be disabled in Settings; runtime toggle starts paused)
 - Conversion overlay near the caret showing the result (`from → to`)
+- Quiet sound tick on conversions (procedurally synthesized, no audio files)
 - Tray icon and quick actions menu
 - Light and dark UI themes
 - Settings are saved to a config file
