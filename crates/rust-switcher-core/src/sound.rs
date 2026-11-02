@@ -105,8 +105,11 @@ mod tests {
     fn samples_stay_within_quiet_bounds() {
         for wav in [conversion_tick_wav(), error_cue_wav()] {
             let data = &wav[44..];
-            for chunk in data.chunks_exact(2) {
-                let sample = i16::from_le_bytes([chunk[0], chunk[1]]);
+            // Manual pair iteration: avoids clippy::chunks_exact_to_as_chunks
+            // on the latest nightly toolchains used by CI.
+            let mut pairs = data.iter();
+            while let (Some(lo), Some(hi)) = (pairs.next(), pairs.next()) {
+                let sample = i16::from_le_bytes([*lo, *hi]);
                 assert!(sample.abs() <= 8_192);
             }
         }
