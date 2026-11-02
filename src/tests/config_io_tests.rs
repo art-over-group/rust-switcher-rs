@@ -174,6 +174,32 @@ fn config_sticky_shift_flag_roundtrips() {
 }
 
 #[test]
+fn excluded_apps_default_contains_terminals() {
+    let cfg = Config::default();
+
+    assert!(cfg.excluded_apps.iter().any(|app| app == "cmd.exe"));
+    assert!(cfg
+        .excluded_apps
+        .iter()
+        .any(|app| app == "powershell.exe"));
+}
+
+#[test]
+fn excluded_apps_roundtrip() {
+    let _env = AppDataOverride::new("appdata-exclusions-roundtrip");
+
+    let cfg = Config {
+        excluded_apps: vec!["myterm.exe".to_owned()],
+        ..Default::default()
+    };
+
+    config::save(&cfg).unwrap();
+    let loaded = config::load().unwrap();
+
+    assert_eq!(loaded.excluded_apps, vec!["myterm.exe".to_owned()]);
+}
+
+#[test]
 fn config_save_rejects_invalid_sequences() {
     let _env = AppDataOverride::new("appdata-invalid");
 

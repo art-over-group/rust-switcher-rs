@@ -12,6 +12,11 @@ UI toggle. You can set these in `%APPDATA%\RustSwitcher\config.json`:
   "Play conversion sound" checkbox in Settings)
 - `sticky_shift_enabled` defaults to `true` (also exposed as the
   "Fix sticky Shift" checkbox in Settings)
+- `excluded_apps` defaults to the terminal block-list
+  (`cmd.exe`, `conhost.exe`, `powershell.exe`, `pwsh.exe`,
+  `windowsterminal.exe`, `alacritty.exe`, `wezterm.exe`, `ghostty.exe`,
+  `soffice.exe`); edit the JSON array in config to customize — see
+  `docs/features/per-app-exceptions.md`
 
 Notes:
 - `clipboard_fallback_enabled` gates `convert_selection_clipboard_fallback`

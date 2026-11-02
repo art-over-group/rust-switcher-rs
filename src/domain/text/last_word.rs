@@ -106,6 +106,10 @@ pub fn autoconvert_last_word(state: &mut AppState) {
         tracing::warn!("foreground window is null");
         return;
     }
+    if crate::platform::win::app_rules::foreground_app_excluded() {
+        tracing::trace!(reason = "excluded_app", "autoconvert skip");
+        return;
+    }
     let _guard = match AutoconvertGuard::try_acquire() {
         Ok(g) => g,
         Err(reason) => {

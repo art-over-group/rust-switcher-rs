@@ -6,6 +6,7 @@
 //! present a settings window and respond to user actions.
 
 mod autostart;
+pub(crate) mod app_rules;
 pub(crate) mod clipboard;
 mod commands;
 pub(crate) mod hotkey_format;

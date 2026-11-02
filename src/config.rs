@@ -68,6 +68,10 @@ pub struct Config {
     pub sound_enabled: bool,
     #[serde(default = "default_sticky_shift_enabled")]
     pub sticky_shift_enabled: bool,
+    /// Foreground executables where AutoConvert is disabled. Matched by
+    /// exact case-insensitive file name (`.exe` optional on both sides).
+    #[serde(default = "default_excluded_apps")]
+    pub excluded_apps: Vec<String>,
 
     pub hotkey_convert_last_word: Option<Hotkey>,
     #[serde(default)]
@@ -159,6 +163,26 @@ const fn default_sticky_shift_enabled() -> bool {
     true
 }
 
+/// Terminals and console hosts are excluded by default: an unexpected
+/// SendInput correction there can alter shell commands (same defaults as
+/// KeyRay). Matching is by exact executable file name.
+fn default_excluded_apps() -> Vec<String> {
+    [
+        "cmd.exe",
+        "conhost.exe",
+        "powershell.exe",
+        "pwsh.exe",
+        "windowsterminal.exe",
+        "alacritty.exe",
+        "wezterm.exe",
+        "ghostty.exe",
+        "soffice.exe",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
+}
+
 fn default_smart_hotkey_convert_last_word_sequence() -> Option<HotkeySequence> {
     Some(triple_modifier_sequence(MOD_SHIFT.0, MODVK_LSHIFT))
 }
@@ -184,6 +208,7 @@ impl Default for Config {
             overlay_enabled: default_overlay_enabled(),
             sound_enabled: default_sound_enabled(),
             sticky_shift_enabled: default_sticky_shift_enabled(),
+            excluded_apps: default_excluded_apps(),
 
             hotkey_switch_layout: None,
             hotkey_pause: None,

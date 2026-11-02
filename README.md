@@ -19,6 +19,8 @@ developer or third parties.
 - Quiet sound tick on conversions (procedurally synthesized, no audio files)
 - Switch the case of selected text (`hello → HELLO → Hello`, bind the hotkey in Settings)
 - Sticky-Shift fix while typing (`СЛово → Слово`)
+- AutoConvert is off in terminals and console hosts by default
+  (customize `excluded_apps` in the config file)
 - Tray icon and quick actions menu
 - Light and dark UI themes
 - Settings are saved to a config file
