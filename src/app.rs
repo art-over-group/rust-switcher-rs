@@ -28,6 +28,7 @@ pub enum ConversionSource {
     LastWord,
     LastSequence,
     Selection,
+    CaseSwitch,
 }
 
 /// Details of a completed conversion, recorded by the domain layer and
@@ -67,6 +68,7 @@ pub enum HotkeySlot {
     SmartLastWord,
     SmartLastSequence,
     SmartSelection,
+    SwitchCase,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -76,6 +78,7 @@ pub struct HotkeyValues {
     pub pause: Option<config::Hotkey>,
     pub selection: Option<config::Hotkey>,
     pub switch_layout: Option<config::Hotkey>,
+    pub switch_case: Option<config::Hotkey>,
 }
 
 impl HotkeyValues {
@@ -86,6 +89,7 @@ impl HotkeyValues {
             pause: cfg.hotkey_pause,
             selection: cfg.hotkey_convert_selection,
             switch_layout: cfg.hotkey_switch_layout,
+            switch_case: cfg.hotkey_switch_case,
         }
     }
 
@@ -97,6 +101,7 @@ impl HotkeyValues {
             HotkeySlot::Pause => self.pause,
             HotkeySlot::Selection => self.selection,
             HotkeySlot::SwitchLayout => self.switch_layout,
+            HotkeySlot::SwitchCase => self.switch_case,
             HotkeySlot::SmartLastWord
             | HotkeySlot::SmartLastSequence
             | HotkeySlot::SmartSelection => None,
@@ -110,6 +115,7 @@ impl HotkeyValues {
             HotkeySlot::Pause => self.pause = hk,
             HotkeySlot::Selection => self.selection = hk,
             HotkeySlot::SwitchLayout => self.switch_layout = hk,
+            HotkeySlot::SwitchCase => self.switch_case = hk,
             HotkeySlot::SmartLastWord
             | HotkeySlot::SmartLastSequence
             | HotkeySlot::SmartSelection => {}
@@ -127,6 +133,7 @@ pub struct HotkeySequenceValues {
     pub smart_last_word: Option<config::HotkeySequence>,
     pub smart_last_sequence: Option<config::HotkeySequence>,
     pub smart_selection: Option<config::HotkeySequence>,
+    pub switch_case: Option<config::HotkeySequence>,
 }
 
 impl HotkeySequenceValues {
@@ -153,6 +160,7 @@ impl HotkeySequenceValues {
             smart_last_word: cfg.smart_hotkey_convert_last_word_sequence,
             smart_last_sequence: cfg.smart_hotkey_convert_last_sequence_sequence,
             smart_selection: cfg.smart_hotkey_convert_selection_sequence,
+            switch_case: cfg.hotkey_switch_case_sequence,
         }
     }
 
@@ -166,6 +174,7 @@ impl HotkeySequenceValues {
             HotkeySlot::SmartLastWord => self.smart_last_word,
             HotkeySlot::SmartLastSequence => self.smart_last_sequence,
             HotkeySlot::SmartSelection => self.smart_selection,
+            HotkeySlot::SwitchCase => self.switch_case,
         }
     }
 
@@ -179,6 +188,7 @@ impl HotkeySequenceValues {
             HotkeySlot::SmartLastWord => self.smart_last_word = seq,
             HotkeySlot::SmartLastSequence => self.smart_last_sequence = seq,
             HotkeySlot::SmartSelection => self.smart_selection = seq,
+            HotkeySlot::SwitchCase => self.switch_case = seq,
         }
     }
 }
@@ -250,6 +260,7 @@ pub struct HotkeySequenceProgress {
     pub smart_last_word: SequenceProgress,
     pub smart_last_sequence: SequenceProgress,
     pub smart_selection: SequenceProgress,
+    pub switch_case: SequenceProgress,
 }
 
 /// Per-window state used throughout the application.
@@ -377,6 +388,7 @@ pub struct HotkeyEdits {
     pub smart_last_word: HWND,
     pub smart_last_sequence: HWND,
     pub smart_selection: HWND,
+    pub switch_case: HWND,
 }
 
 #[derive(Debug, Default)]
@@ -407,6 +419,7 @@ pub enum ControlId {
     HotkeySmartLastWord = 1206,
     HotkeySmartLastSequence = 1207,
     HotkeySmartSelection = 1208,
+    HotkeySwitchCase = 1209,
 
     Apply = 1101,
     Cancel = 1102,
@@ -434,6 +447,7 @@ impl ControlId {
             1206 => Some(Self::HotkeySmartLastWord),
             1207 => Some(Self::HotkeySmartLastSequence),
             1208 => Some(Self::HotkeySmartSelection),
+            1209 => Some(Self::HotkeySwitchCase),
 
             1101 => Some(Self::Apply),
             1102 => Some(Self::Cancel),

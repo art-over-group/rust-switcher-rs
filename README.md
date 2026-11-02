@@ -17,6 +17,7 @@ developer or third parties.
 - Auto-convert the last word while typing (can be disabled in Settings; runtime toggle starts paused)
 - Conversion overlay near the caret showing the result (`from → to`)
 - Quiet sound tick on conversions (procedurally synthesized, no audio files)
+- Switch the case of selected text (`hello → HELLO → Hello`, bind the hotkey in Settings)
 - Tray icon and quick actions menu
 - Light and dark UI themes
 - Settings are saved to a config file
@@ -60,6 +61,8 @@ Default hotkey sequences:
 * Convert selection: double tap Left Shift
 * Autoconvert toggle: double tap Right Ctrl
 * Switch layout: CapsLock
+* Switch selection case: unassigned by default — bind it in Settings
+  (a global `Ctrl+Shift+Z` would hijack "Redo" in other apps)
 
 To remove a binding, focus its hotkey field and press Backspace or Delete.
 

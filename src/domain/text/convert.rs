@@ -15,8 +15,7 @@ use windows::Win32::{
 };
 
 use super::{
-    mapping,
-    selection_probe::{CapturedSelection, SelectionProbe, probe_selection},
+    case_switch, mapping, selection_probe::{CapturedSelection, SelectionProbe, probe_selection},
     smart,
 };
 use crate::{
@@ -213,6 +212,65 @@ fn convert_selection_from_text(
         }
     }
     Ok(())
+}
+
+/// Cycles the case of the selected text: `lower → UPPER → Sentence-case → lower`.
+///
+/// Shares the selection machinery with layout conversion (probe, guarded
+/// replacement, optional reselection for Ctrl+Z) but never touches layouts
+/// or the clipboard.
+pub fn switch_selection_case(state: &mut AppState) {
+    tracing::trace!("switch_selection_case called");
+    let fg = unsafe { GetForegroundWindow() };
+    if fg.0.is_null() {
+        tracing::warn!("foreground window is null");
+        return;
+    }
+
+    if !wait_shift_released(150) {
+        tracing::info!("wait_shift_released returned false (case switch)");
+        return;
+    }
+
+    let selection = match probe_selection(MAX_SELECTION_CHARS) {
+        SelectionProbe::Absent => {
+            tracing::trace!("case switch: no selection");
+            return;
+        }
+        SelectionProbe::Blocked => {
+            tracing::trace!("case switch: selection probe blocked");
+            return;
+        }
+        SelectionProbe::Selected(selection) => selection,
+    };
+
+    let converted = case_switch::switch_case(&selection.text);
+    if converted == selection.text {
+        tracing::trace!(text = %selection.text, "case switch: nothing to change");
+        return;
+    }
+
+    thread::sleep(Duration::from_millis(u64::from(
+        crate::config::CONVERSION_DELAY_MS,
+    )));
+
+    if !selection.is_current() {
+        tracing::warn!("case switch: target changed before input");
+        return;
+    }
+
+    let reselect = crate::config::load().unwrap_or_default().richer_undo_enabled;
+    if !replace_selection_unicode(&converted, || selection.target.is_current(), reselect) {
+        tracing::warn!("case switch: input rejected");
+        return;
+    }
+
+    state.last_conversion = Some(crate::app::ConversionFeedback::new(
+        crate::app::ConversionSource::CaseSwitch,
+        selection.text.as_str(),
+        converted.as_str(),
+    ));
+    tracing::trace!(converted = %converted, "case switch: completed");
 }
 
 use crate::config::load as load_config;

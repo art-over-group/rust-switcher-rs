@@ -291,6 +291,12 @@ fn apply_config_to_ui(
         state.hotkeys.smart_selection,
         &format_hotkey_sequence(cfg.smart_hotkey_convert_selection_sequence),
     )?;
+    let switch_case_text = if cfg.hotkey_switch_case_sequence.is_some() {
+        format_hotkey_sequence(cfg.hotkey_switch_case_sequence)
+    } else {
+        format_hotkey(cfg.hotkey_switch_case)
+    };
+    set_hwnd_text(state.hotkeys.switch_case, &switch_case_text)?;
     crate::platform::ui::sync_smarter_hotkey_controls(hwnd, state, cfg.smarter_hotkeys_enabled)?;
     crate::platform::ui::sync_autoconvert_controls(state, cfg.autoconvert_feature_enabled);
 
@@ -317,6 +323,7 @@ fn read_ui_to_config(state: &AppState, mut cfg: config::Config) -> config::Confi
     cfg.smart_hotkey_convert_last_sequence_sequence =
         state.hotkey_sequence_values.smart_last_sequence;
     cfg.smart_hotkey_convert_selection_sequence = state.hotkey_sequence_values.smart_selection;
+    cfg.hotkey_switch_case_sequence = state.hotkey_sequence_values.switch_case;
 
     fn hk_or_none_if_double(
         seq: Option<config::HotkeySequence>,
@@ -344,6 +351,10 @@ fn read_ui_to_config(state: &AppState, mut cfg: config::Config) -> config::Confi
     cfg.hotkey_switch_layout = match cfg.hotkey_switch_layout_sequence {
         Some(_) => None,
         None => state.hotkey_values.switch_layout,
+    };
+    cfg.hotkey_switch_case = match cfg.hotkey_switch_case_sequence {
+        Some(_) => None,
+        None => state.hotkey_values.switch_case,
     };
 
     cfg
@@ -1037,6 +1048,9 @@ fn execute_runtime_command(hwnd: HWND, state: &mut AppState, command: RuntimeCom
                 crate::conversion::smart_convert_selection(state)
             }
             HotkeyAction::SwitchLayout => handle_switch_layout_hotkey(state),
+            HotkeyAction::SwitchCase => {
+                crate::domain::text::convert::switch_selection_case(state)
+            }
         },
     }
 }

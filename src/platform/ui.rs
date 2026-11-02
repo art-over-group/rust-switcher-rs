@@ -399,6 +399,17 @@ fn create_hotkey_rows(
     )?;
     hy += 28;
 
+    state.hotkeys.switch_case = create_hotkey_row(
+        hwnd,
+        g.hx,
+        hy,
+        g.w_label,
+        g.w_edit,
+        w!("Switch selection case:"),
+        Some(ControlId::HotkeySwitchCase.hmenu()),
+    )?;
+    hy += 28;
+
     create_playground_row(hwnd, state, g, hy)?;
 
     Ok(())

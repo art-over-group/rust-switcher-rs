@@ -5,7 +5,7 @@ use crate::config::{
     constants::{
         CONVERT_LAST_SEQUENCE, CONVERT_LAST_WORD, CONVERT_SELECTION, PAUSE,
         SMART_CONVERT_LAST_SEQUENCE, SMART_CONVERT_LAST_WORD, SMART_CONVERT_SELECTION,
-        SWITCH_LAYOUT,
+        SWITCH_CASE, SWITCH_LAYOUT,
     },
 };
 
@@ -25,6 +25,7 @@ pub fn find_duplicate_hotkey_sequences(config: &Config) -> Option<String> {
     sequences.extend([
         (CONVERT_SELECTION, &config.hotkey_convert_selection_sequence),
         (SWITCH_LAYOUT, &config.hotkey_switch_layout_sequence),
+        (SWITCH_CASE, &config.hotkey_switch_case_sequence),
     ]);
 
     if config.smarter_hotkeys_enabled {

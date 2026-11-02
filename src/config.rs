@@ -73,6 +73,10 @@ pub struct Config {
     pub hotkey_convert_selection: Option<Hotkey>,
     pub hotkey_switch_layout: Option<Hotkey>,
     pub hotkey_pause: Option<Hotkey>,
+    /// Case-cycle hotkey for the selected text. Unassigned by default so the
+    /// global registration never hijacks chords like Ctrl+Shift+Z (Redo).
+    #[serde(default)]
+    pub hotkey_switch_case: Option<Hotkey>,
 
     #[serde(default)]
     pub hotkey_convert_last_word_sequence: Option<HotkeySequence>,
@@ -84,6 +88,8 @@ pub struct Config {
     pub hotkey_convert_selection_sequence: Option<HotkeySequence>,
     #[serde(default)]
     pub hotkey_switch_layout_sequence: Option<HotkeySequence>,
+    #[serde(default)]
+    pub hotkey_switch_case_sequence: Option<HotkeySequence>,
 
     #[serde(default)]
     pub smarter_hotkeys_enabled: bool,
@@ -177,6 +183,7 @@ impl Default for Config {
             hotkey_convert_last_word: None,
             hotkey_convert_last_sequence: None,
             hotkey_convert_selection: None,
+            hotkey_switch_case: None,
 
             hotkey_convert_last_word_sequence: Some(double_modifier_sequence(
                 MOD_SHIFT.0,
@@ -199,6 +206,7 @@ impl Default for Config {
                 third: None,
                 max_gap_ms: 1000,
             }),
+            hotkey_switch_case_sequence: None,
 
             smarter_hotkeys_enabled: false,
             autoconvert_feature_enabled: default_autoconvert_feature_enabled(),
