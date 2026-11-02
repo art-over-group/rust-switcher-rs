@@ -598,10 +598,10 @@ fn user_terms_dictionary() -> TermDictionary {
         .and_then(|metadata| metadata.modified().ok());
 
     let mut cache = CACHE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    if let Some((cached_mtime, dictionary)) = cache.as_ref() {
-        if *cached_mtime == mtime {
-            return dictionary.clone();
-        }
+    if let Some((cached_mtime, dictionary)) = cache.as_ref()
+        && *cached_mtime == mtime
+    {
+        return dictionary.clone();
     }
 
     let dictionary = path
